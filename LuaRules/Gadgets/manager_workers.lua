@@ -145,8 +145,8 @@ Worker.TaskNextCmd = function(self)
 end
 
 Worker.TaskFinished = function(self)
-	self:SetIdle(true)
 	self.currTask = nil
+	self:SetIdle(true)
 end
 
 -- TASK
@@ -194,6 +194,9 @@ Task.Finish = function(self)
 		local workerObject = OBJECTS[workerID]
 		workerObject:TaskFinished()
 	end
+	-- cleanup
+	self.allocated = 0
+	self.workerIndex = nil
 	-- let the building know
 	self.building:TaskFinished(self)
 end
@@ -342,11 +345,21 @@ end
 
 Yard.TaskFinished = function(self, task)
 	if task.name == "costs" then
-		if self.idleWorkers[1] then
+		--[[if self.idleWorkers[1] then
 			local taskSite = GetObjectFromID(task.cmdQ[1].params[1])
 			for i = 1, math.min(task.limit, #self.idleWorkers) do
 				taskSite.buildTask:AllocateWorker(self.idleWorkers[i])
 			end
+		end]]
+		local taskSite = GetObjectFromID(task.cmdQ[1].params[1])
+		local allocated = 0
+		while allocated <= task.limit do
+			local workerID = next(self.idleWorkers)
+			Spring.Echo("allocated", allocated, "workerID", workerID)
+			if workerID then
+				taskSite.buildTask:AllocateWorker(workerID)
+				allocated = allocated + 1
+			else break end -- no more idle workers
 		end
 	elseif task.name == "build" then
 		Spring.Echo("Build task completed")
